@@ -1,0 +1,26 @@
+TENDER: E-COMMERCE WEBSITE DEVELOPMENT
+
+Project Overview
+
+ABC Retail Pvt Ltd is seeking a software development company to build a scalable e-commerce platform.
+
+Requirements:
+
+1. Backend must be developed using FastAPI.
+2. Database must be PostgreSQL.
+3. Redis must be used for caching.
+4. Docker containerization is mandatory.
+5. JWT authentication is required.
+6. Product search functionality must be implemented.
+7. Order management system must be included.
+8. Deployment must be completed within 60 days.
+9. Vendor must have at least 3 years of web development experience.
+10. Vendor must provide 6 months of support after deployment.
+
+Evaluation Criteria:
+
+* Technical Fit: 40%
+* Experience: 20%
+* Delivery Timeline: 20%
+* Support Plan: 20%
+  Budget: ₹10,00,000

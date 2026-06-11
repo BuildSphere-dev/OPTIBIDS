@@ -1,115 +1,117 @@
-# pipeline.py
-from typing import List
+# backend/app/pipeline.py
+
+"""
+Tender indexing pipeline.
+
+Triggered when an admin publishes a tender.
+Runs in a background thread (never blocks the API response).
+
+What it does:
+  1. Extract text from the tender (raw_text or description)
+  2. Chunk it using LangChain RecursiveCharacterTextSplitter
+  3. Embed each chunk (ai_agent.embed_text)
+  4. Store TenderChunk rows with metadata + embedding_json
+  5. Set tender.status = "published"
+
+Proposal scoring is handled separately by tasks.evaluate_proposal (Celery).
+
+The old run_pipeline function is preserved below for backward compatibility
+in case any internal code still references it.
+"""
+
 import json
 from sqlmodel import select
 
 from .db import get_session
-from .models import Tender, Requirement, SKU, Match, Pricing
-from . import ai_agent, matcher, pricing as pricing_mod, consolidator
+from .models import Tender, TenderChunk
+from . import ai_agent
+from .chunker import chunk_tender
 
-def run_pipeline(tender_id: int) -> None:
-    # ------------------ LOAD TENDER ------------------
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+def index_tender(tender_id: int) -> None:
+    """
+    Chunk and embed a tender's text, storing each chunk as a TenderChunk row.
+
+    Called by the admin publish endpoint via FastAPI's BackgroundTasks or
+    run_in_threadpool so the HTTP response returns immediately.
+
+    Args:
+        tender_id: PK of the Tender to index.
+    """
+    print(f"▶  index_tender: tender_id={tender_id}")
+
+    # ── Load tender ──────────────────────────────────────────────────────────
     with get_session() as session:
         tender = session.get(Tender, tender_id)
         if tender is None:
-            print("Tender not found:", tender_id)
+            print(f"   Tender {tender_id} not found — aborting")
             return
 
-        tender.status = "extracting"
+        tender.status = "indexing"
         session.commit()
 
-    # ------------------ STEP 1: Extract Requirements ------------------
-    extracted = ai_agent.extract_requirements_from_text(
-        tender.raw_text or tender.description
+        tender_title = tender.title
+        text = tender.raw_text or tender.description
+
+    # ── Chunk with LangChain (metadata attached per Document) ────────────────
+    documents = chunk_tender(
+        text=text,
+        tender_id=tender_id,
+        tender_title=tender_title,
+        chunk_size=500,
+        chunk_overlap=100,
     )
 
-    requirements = extracted.get("requirements", [])
-    confidence = float(extracted.get("confidence", 0.9))
+    print(f"   Produced {len(documents)} chunks for tender_id={tender_id}")
 
+    # ── Embed + persist ──────────────────────────────────────────────────────
     with get_session() as session:
-        session.add(
-            Requirement(
-                tender_id=tender_id,
-                req_json=json.dumps(requirements),
-                confidence=confidence,
+        # Clear any previously indexed chunks for this tender
+        # (handles re-indexing after an edit)
+        old_chunks = session.exec(
+            select(TenderChunk).where(TenderChunk.tender_id == tender_id)
+        ).all()
+        for old in old_chunks:
+            session.delete(old)
+        session.flush()
+
+        for doc in documents:
+            meta = doc.metadata
+            embedding = ai_agent.embed_text(doc.page_content)
+
+            session.add(
+                TenderChunk(
+                    tender_id=tender_id,
+                    chunk_index=meta["chunk_index"],
+                    total_chunks=meta["total_chunks"],
+                    chunk_text=doc.page_content,
+                    tender_title=meta.get("tender_title", ""),
+                    embedding_json=json.dumps(embedding),
+                )
             )
-        )
-        session.commit()
 
-    # ------------------ STEP 2: Build SKU Index ------------------
-    with get_session() as session:
-        skus = session.exec(select(SKU)).all()
-
-    vectors: List[List[float]] = [
-        ai_agent.embed_text(sku.description or "") for sku in skus
-    ]
-
-    try:
-        matcher.build_index(vectors)
-    except Exception as e:
-        print("FAISS error:", e)
-
-    # ------------------ STEP 3: Matching ------------------
-    matches_for_pricing = []
-
-    with get_session() as session:
         tender = session.get(Tender, tender_id)
-        tender.status = "matching"
+        if tender:
+            tender.status = "published"
         session.commit()
 
-        for r in requirements:
-            qv = ai_agent.embed_text(str(r.get("text", "")))
-            ids, scores = matcher.search_index(qv, top_k=3)
+    print(f"✅  index_tender done: {len(documents)} chunks stored, "
+          f"tender_id={tender_id} status=published")
 
-            for idx, score in zip(ids, scores):
-                if idx < len(skus):
-                    sku = skus[idx]
 
-                    session.add(
-                        Match(
-                            tender_id=tender_id,
-                            sku_id=sku.id,
-                            score=float(score),
-                            explanation="auto",
-                        )
-                    )
+# ---------------------------------------------------------------------------
+# Legacy — kept so any existing imports of run_pipeline don't break
+# ---------------------------------------------------------------------------
 
-                    matches_for_pricing.append({
-                        "sku_code": sku.sku_code,
-                        "price_base": sku.price_base,
-                        "quantity": r.get("quantity", 1),
-                    })
-
-        session.commit()
-
-    # ------------------ STEP 4: Pricing ------------------
-    pricing_out = pricing_mod.compute_pricing(matches_for_pricing)
-
-    with get_session() as session:
-        tender = session.get(Tender, tender_id)
-        tender.status = "pricing"
-
-        session.add(
-            Pricing(
-                tender_id=tender_id,
-                line_items=json.dumps(pricing_out["line_items"]),
-                total_amount=float(pricing_out["total"]),
-                margin_percent=10.0,
-            )
-        )
-        session.commit()
-
-    # ------------------ STEP 5: Proposal ------------------
-    consolidator.make_proposal(
-        requirements,
-        pricing_out,
-        {
-            "name": "System",
-            "source": "auto_pipeline"
-        }
-    )
-
-    with get_session() as session:
-        tender = session.get(Tender, tender_id)
-        tender.status = "completed"
-        session.commit()
+def run_pipeline(tender_id: int) -> None:
+    """
+    Deprecated: was the old synchronous proposal pipeline.
+    Now simply delegates to index_tender.
+    Kept for backward compatibility only.
+    """
+    print("⚠️  run_pipeline is deprecated — calling index_tender instead")
+    index_tender(tender_id)

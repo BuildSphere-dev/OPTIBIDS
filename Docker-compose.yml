@@ -1,6 +1,8 @@
-version: "3.8"
-
 services:
+
+  # ─────────────────────────────────────────────
+  # OLLAMA  — LLM inference server
+  # ─────────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -10,21 +12,88 @@ services:
       - ollama_data:/root/.ollama
     command: ["serve"]
 
+  # ─────────────────────────────────────────────
+  # OLLAMA INIT  — pulls phi3:mini once on startup
+  # Runs once and exits (restart: no)
+  # ─────────────────────────────────────────────
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: ollama_init
+    restart: "no"
+    depends_on:
+      - ollama
+    entrypoint: >
+      sh -c "
+      echo 'Waiting for ollama...' &&
+      sleep 10 &&
+      curl -X POST http://ollama:11434/api/pull
+      -H 'Content-Type: application/json'
+      -d '{\"name\":\"phi3:mini\"}'
+      "
 
+  # ─────────────────────────────────────────────
+  # REDIS  — Celery broker + result backend
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7
+    container_name: redis_server
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # BACKEND  — FastAPI app
+  # ─────────────────────────────────────────────
   backend:
     build: ./Backend
+    container_name: backend
     ports:
       - "8000:8000"
     volumes:
       - ./Backend/app:/app/app
+      - db_data:/app/data
     depends_on:
+      - redis
       - ollama
     environment:
       - OLLAMA_BASE=http://ollama:11434
+      - REDIS_URL=redis://redis_server:6379/0
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+  # ─────────────────────────────────────────────
+  # CELERY WORKER  — async proposal scoring
+  # ─────────────────────────────────────────────
+  worker:
+    build: ./Backend
+    container_name: celery_worker
+    command: >
+      celery -A app.celery_app worker
+      -Q pdf_queue,notification_queue
+      --concurrency=4
+      --loglevel=info
+    volumes:
+      - ./Backend/app:/app/app
+      - db_data:/app/data
+    depends_on:
+      - redis
+      - ollama
+    environment:
+      - OLLAMA_BASE=http://ollama:11434
+      - REDIS_URL=redis://redis_server:6379/0
+    restart: on-failure
+
+  # FRONTEND  — Nginx static / React build
+  # ─────────────────────────────────────────────
   frontend:
     build: ./frontend
+    container_name: frontend
     ports:
       - "3000:80"
     depends_on:
@@ -34,3 +103,5 @@ services:
 
 volumes:
   ollama_data:
+  redis_data:
+  db_data:

@@ -2,16 +2,16 @@
 from sqlmodel import create_engine, SQLModel, Session
 from pathlib import Path
 from contextlib import contextmanager
-from sqlmodel import Session
 
+# Use a path that's accessible from both backend and worker containers
+# via shared volume at /app/data/
+DB_FILE = Path("/app/data/database.db")
+DB_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-DB_FILE = Path(__file__).resolve().parents[1] / "db.sqlite3"
 engine = create_engine(f"sqlite:///{DB_FILE}", echo=False)
 
 def init_db():
     SQLModel.metadata.create_all(engine)
-from contextlib import contextmanager
-from sqlmodel import Session
 
 @contextmanager
 def get_session():

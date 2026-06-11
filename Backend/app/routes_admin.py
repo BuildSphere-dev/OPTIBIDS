@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, BackgroundTasks
 from sqlmodel import select
 from typing import Optional
 import os, uuid, json
@@ -6,8 +6,9 @@ import os, uuid, json
 from .db import get_session
 from .auth_helpers import get_current_user
 from .models import Tender, User, Application
-from .pipeline import run_pipeline
+from .pipeline import index_tender
 from . import ai_agent
+
 
 router = APIRouter()
 UPLOAD_DIR = "/app/out"
@@ -26,6 +27,7 @@ def require_admin(user: User = Depends(get_current_user)):
 # -------------------------------------------------
 @router.post("/tenders")
 async def create_tender(
+    background_tasks: BackgroundTasks,
     title: str = Form(...),
     description: str = Form(...),
     published: bool = Form(True),
@@ -51,8 +53,12 @@ async def create_tender(
         session.add(tender)
         session.commit()
         session.refresh(tender)
+        tender_id = tender.id
 
-        return {"id": tender.id}
+    if published and tender_id is not None:
+        background_tasks.add_task(index_tender, tender_id)
+
+    return {"id": tender_id}
 
 # -------------------------------------------------
 # LIST TENDERS
@@ -91,16 +97,22 @@ def admin_list_applications(admin: User = Depends(require_admin)):
         users = {u.id: u for u in session.exec(select(User)).all()}
         tenders = {t.id: t for t in session.exec(select(Tender)).all()}
 
-        return [
-            {
+        result = []
+        for a in apps:
+            user = users.get(a.user_id)
+            tender = tenders.get(a.tender_id)
+            result.append({
                 "id": a.id,
                 "tender_id": a.tender_id,
-                "user_email": users.get(a.user_id).email if a.user_id in users else "Unknown",
-                "tender_title": tenders.get(a.tender_id).title if a.tender_id in tenders else "Unknown",
+                "user_email": user.email if user else "Unknown",
+                "tender_title": tender.title if tender else "Unknown",
                 "status": a.status or "submitted",
-            }
-            for a in apps
-        ]
+                "overall_score": a.overall_score,
+                "technical_score": a.technical_score,
+                "pricing_score": a.pricing_score,
+                "compliance_score": a.compliance_score,
+            })
+        return result
 
 
 # -------------------------------------------------
@@ -133,35 +145,42 @@ def summarize_tender(tender_id: int, admin: User = Depends(require_admin)):
     with get_session() as session:
         tender = session.get(Tender, tender_id)
         if not tender:
-            raise HTTPException(404, "Tender not found")
+            raise HTTPException(status_code=404, detail="Tender not found")
 
-        apps = session.exec(
-            select(Application, User)
-            .where(Application.tender_id == tender_id)
-            .where(Application.user_id == User.id)
-        ).all()
+        # Pure DB read — no Ollama call
+        result = ai_agent.build_user_summary(tender_id, session)
 
-        if not apps:
-            return {"error": "No applications to summarize"}
-
-        payload = [
-            {
-                "application_id": app.id,
-                "email": user.email,
-                "text": app.applicant_text,
-            }
-            for app, user in apps
-        ]
-
-    # AI OUTSIDE DB
-    summary = ai_agent.build_user_summary(payload)
-
-    with get_session() as session:
-        tender = session.get(Tender, tender_id)
-        tender.summary_json = json.dumps(summary)
+        # Cache result on the Tender row (same behaviour as before)
+        tender.summary_json = json.dumps(result)
+        session.add(tender)
         session.commit()
 
-    return summary
+    return result
+# CHANGED — add BackgroundTasks parameter to trigger index_tender after response
+# The route path, method, and response are IDENTICAL to what you had.
+# If you already have a "create tender" endpoint, add `background_tasks`
+# the same way and call background_tasks.add_task(index_tender, tender.id)
+# right before the return statement.
+#
+# Example (adapt to your actual create/publish endpoint):
+@router.post("/tenders/{tender_id}/publish")
+def publish_tender(
+    tender_id: int,
+    background_tasks: BackgroundTasks,
+    admin: User = Depends(require_admin),
+):
+    with get_session() as session:
+        tender = session.get(Tender, tender_id)
+        if not tender:
+            raise HTTPException(status_code=404, detail="Tender not found")
+        if tender.status not in ("draft", "indexing"):
+            raise HTTPException(status_code=400, detail="Tender already published")
+
+    # index_tender runs AFTER this response is sent — does not block the caller
+    background_tasks.add_task(index_tender, tender_id)
+
+    return {"tender_id": tender_id, "status": "indexing_started"}
+
 
 # -------------------------------------------------
 # SEND OFFER

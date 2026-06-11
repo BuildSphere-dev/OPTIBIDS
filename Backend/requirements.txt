@@ -10,3 +10,8 @@ faiss-cpu
 python-docx
 pydantic
 aiofiles
+langchain-core
+langchain-text-splitters
+pymupdf
+celery[redis]
+
