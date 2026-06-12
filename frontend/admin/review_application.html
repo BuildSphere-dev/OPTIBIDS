@@ -53,36 +53,11 @@
           </div>
         </div>
 
-        <!-- AI SUMMARY -->
-        <div id="ai-summary-wrapper" style="display:none;">
-          <div class="ai-panel" id="ai-panel">
-            <div class="ai-panel-header">
-              <div class="ai-icon"><i class="fas fa-robot"></i></div>
-              <div>
-                <h3>AI Evaluation Report</h3>
-                <p style="font-size:0.78rem;color:var(--text-3);margin:0;">Powered by phi3:mini · Ollama</p>
-              </div>
-            </div>
-            <div id="ai-panel-content"></div>
-          </div>
-        </div>
       </div>
 
       <!-- OFFER PANEL -->
       <div>
         <div class="section-card">
-          <div class="section-card-header">
-            <h2><i class="fas fa-brain"></i> AI Evaluation</h2>
-          </div>
-          <p style="font-size:0.85rem;color:var(--text-2);margin-bottom:1rem;">
-            Run the AI pipeline to extract requirements, match SKUs, compute pricing, and identify the best applicant.
-          </p>
-          <button class="auth-btn primary" style="width:100%;" id="ai-btn" onclick="runAI()">
-            <i class="fas fa-magic"></i> Generate AI Summary
-          </button>
-        </div>
-
-        <div class="section-card" style="margin-top:0;">
           <div class="section-card-header">
             <h2><i class="fas fa-paper-plane"></i> Send Offer</h2>
           </div>
@@ -132,86 +107,6 @@ async function loadApp() {
   }
 }
 
-async function runAI() {
-  const btn = document.getElementById('ai-btn');
-
-  // Get tender id from app data
-  if (!currentTenderId) {
-    // try to read from app
-    try {
-      const app = await api.get(`/admin/applications/${appId}`);
-      currentTenderId = app.tender_id;
-    } catch { showToast('Unable to determine tender ID', 'error'); return; }
-  }
-
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running AI Pipeline…';
-
-  try {
-    const res = await api.post(`/admin/tenders/${currentTenderId}/summary`, {});
-    const wrapper = document.getElementById('ai-summary-wrapper');
-    wrapper.style.display = 'block';
-
-    if (res.error) {
-      document.getElementById('ai-panel-content').innerHTML =
-        `<p style="color:var(--text-2);font-size:0.9rem;">${res.error}</p>`;
-      showToast(res.error, 'info');
-      return;
-    }
-
-    const best = res.best_application;
-    const others = res.comparison || [];
-
-    if (!best) {
-      document.getElementById('ai-panel-content').innerHTML = `
-        <p style="padding:1rem 0;margin:0;color:var(--text-2);">No evaluated proposals found for this tender yet. Please wait for the scoring task to complete and try again.</p>`;
-      return;
-    }
-
-    document.getElementById('ai-panel-content').innerHTML = `
-      <div class="best-applicant-card">
-        <h4><i class="fas fa-trophy"></i> Best Applicant</h4>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;font-size:0.88rem;">
-          <div><span style="color:var(--text-3);font-size:0.76rem;display:block;margin-bottom:.1rem;">EMAIL</span><strong>${best.email || '—'}</strong></div>
-          <div><span style="color:var(--text-3);font-size:0.76rem;display:block;margin-bottom:.1rem;">SCORE</span><strong>${best.overall_score !== undefined ? best.overall_score.toFixed(1) : '—'}</strong></div>
-          <div><span style="color:var(--text-3);font-size:0.76rem;display:block;margin-bottom:.1rem;">STATUS</span><strong>${best.status || '—'}</strong></div>
-          <div><span style="color:var(--text-3);font-size:0.76rem;display:block;margin-bottom:.1rem;">EVALUATED</span><strong>${best.created_at ? new Date(best.created_at).toLocaleString() : '—'}</strong></div>
-        </div>
-        ${best.summary ? `<p style="margin-top:.75rem;font-size:0.85rem;color:var(--text-2);">${best.summary}</p>` : `<p style="margin-top:.75rem;font-size:0.85rem;color:var(--text-2);">No summary available yet.</p>`}
-        ${best.note ? `<p style="margin-top:.5rem;font-size:0.8rem;color:var(--text-3);">${best.note}</p>` : ''}
-      </div>
-
-      ${others.length ? `
-        <h4 style="font-size:0.9rem;margin-bottom:.75rem;color:var(--text-2);">All Applications Compared</h4>
-        <div style="overflow-x:auto;">
-          <table class="comparison-table">
-            <thead><tr>
-              <th>Email</th><th>Score</th><th>Status</th><th>Summary</th>
-            </tr></thead>
-            <tbody>
-              ${others.map(a => `
-                <tr>
-                  <td>${a.email || '—'}</td>
-                  <td>${a.overall_score !== undefined ? a.overall_score.toFixed(1) : '—'}</td>
-                  <td>${a.status || '—'}</td>
-                  <td style="color:var(--accent-green);">${a.summary || '—'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>` : ''}
-    `;
-
-    showToast('AI evaluation complete!', 'success');
-  } catch (err) {
-    document.getElementById('ai-panel-content').innerHTML =
-      `<p style="color:var(--accent-red);font-size:0.9rem;"><i class="fas fa-exclamation-circle"></i> AI evaluation failed. Ensure Ollama is running.</p>`;
-    showToast('AI evaluation failed', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-magic"></i> Regenerate Summary';
-  }
-}
 
 async function sendOffer() {
   const text = document.getElementById('offer-text').value.trim();

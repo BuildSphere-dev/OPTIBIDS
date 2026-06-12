@@ -85,8 +85,8 @@ const auth = {
 
   // If already logged in → redirect from login page to dashboard
   if (window.location.pathname.includes("login")) {
-    if (user.role === "admin") window.location.href = "/admin_dashboard.html";
-    else window.location.href = "/applicant_dashboard.html";
+    if (user.role === "admin") window.location.href = "/admin/admin_dashboard.html";
+    else window.location.href = "/applicant/applicant_dashboard.html";
   }
 
 })();

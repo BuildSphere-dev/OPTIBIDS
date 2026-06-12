@@ -32,6 +32,7 @@
     </div>
 
     <!-- STATS -->
+
     <div class="stats-grid" id="stats-row">
       <div class="stat-card">
         <div class="stat-icon purple"><i class="fas fa-file-contract"></i></div>
@@ -73,6 +74,27 @@
       </div>
     </div>
 
+    <!-- AI EVALUATION SECTION -->
+    <div class="section-card" id="ai-eval-section">
+      <div class="section-card-header">
+        <h2><i class="fas fa-brain"></i> AI Evaluation</h2>
+        <span style="font-size:0.78rem;color:var(--text-3);">Powered by phi3:mini · Ollama</span>
+      </div>
+      <p style="font-size:0.85rem;color:var(--text-2);margin-bottom:1rem;">
+        Select a tender and run the AI pipeline to extract requirements, match SKUs, compute pricing, and identify the best applicants.
+      </p>
+      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">
+        <select id="ai-tender-select" class="auth-input" style="flex:1;min-width:220px;max-width:420px;" aria-label="Select tender or recent application">
+          <option value="">— Select a Tender or Recent Application —</option>
+        </select>
+        <button class="auth-btn primary" id="ai-eval-btn" onclick="admin.runDashboardAI()" disabled>
+          <i class="fas fa-magic"></i> Generate AI Summary
+        </button>
+      </div>
+      <div id="ai-tender-select-note" style="font-size:0.83rem;color:var(--text-2);margin-bottom:1rem;">Choose a tender or recent application to evaluate.</div>
+      <div id="ai-eval-result"></div>
+    </div>
+
   </main>
 </div>
 
@@ -80,7 +102,7 @@
 
 <script src="../js/api.js"></script>
 <script src="../js/utils.js"></script>
-<script src="../js/admin.js"></script>
+<script src="../js/admin.js?v=2"></script>
 <script>
 function doLogout() {
   localStorage.removeItem('token');
@@ -95,13 +117,15 @@ function doLogout() {
       window.location.href = '/login.html';
       return;
     }
-    // Load data
-    admin.loadTenders();
-    admin.loadRecentApps();
-    admin.loadStats();
   } catch {
     window.location.href = '/login.html';
+    return;
   }
+
+  admin.loadTenders().catch(e => console.warn('loadTenders failed', e));
+  admin.loadRecentApps().catch(e => console.warn('loadRecentApps failed', e));
+  admin.loadStats().catch(e => console.warn('loadStats failed', e));
+  admin.populateTenderSelect().catch(e => console.warn('populateTenderSelect failed', e));
 })();
 </script>
 

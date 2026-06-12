@@ -1,6 +1,6 @@
 # backend/app/routes_applicant.py
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Body
 from sqlmodel import select
 import json
 from typing import Optional
@@ -161,11 +161,11 @@ def applicant_accepted(user: User = Depends(require_applicant)):
 @router.post("/offer/{application_id}/respond")
 def respond_to_offer(
     application_id: int,
-    data: dict,
     decision: Optional[str] = None,
+    data: Optional[dict] = Body(default=None),
     user: User = Depends(require_applicant),
 ):
-    action = data.get("action") or decision
+    action = (data or {}).get("action") or decision
     if action not in ("accept", "reject"):
         raise HTTPException(400, "action must be 'accept' or 'reject'")
 
@@ -201,7 +201,7 @@ def applicant_notifications(user: User = Depends(require_applicant)):
         apps = session.exec(
             select(Application)
             .where(Application.user_id == user_id)
-            .where(Application.status.in_(["offered", "accepted", "rejected", "evaluated"]))  # type: ignore[attr-defined]
+            .where(Application.status == 'offered')  # only pending offers
         ).all()
 
         notifications = []
@@ -225,8 +225,10 @@ def applicant_notifications(user: User = Depends(require_applicant)):
 
             notifications.append({
                 "application_id": a.id,
+                "tender_id": a.tender_id,
                 "tender_title": tender_title,
                 "status": a.status,
+                "offer": json.loads(a.offer_json) if a.offer_json else None,
                 "message": msg,
             })
 

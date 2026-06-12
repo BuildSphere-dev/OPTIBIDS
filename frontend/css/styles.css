@@ -679,6 +679,7 @@ a:hover { color: var(--text); }
 
 .auth-input, .form-input {
   width: 100%;
+  min-height: 44px;
   padding: .75rem 1rem;
   background: var(--surface-2);
   border: 1.5px solid var(--border);
@@ -702,13 +703,19 @@ textarea.auth-input, textarea.form-input {
 }
 
 select.auth-input, select.form-input {
+  width: 100%;
+  min-width: 0;
   cursor: pointer;
   appearance: none;
+  min-height: 44px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
   padding-right: 2.5rem;
+}
+.disabled-option {
+  color: var(--text-3);
 }
 
 .auth-card .auth-btn,

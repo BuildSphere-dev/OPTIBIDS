@@ -114,8 +114,14 @@ function reviewApp(id) {
   try {
     const user = await api.get('/auth/me');
     if (!user || user.role !== 'admin') { window.location.href = '/login.html'; return; }
-    loadTenderApps();
-  } catch { window.location.href = '/login.html'; }
+  } catch {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  loadTenderApps().catch(e => {
+    console.warn('loadTenderApps failed', e);
+  });
 })();
 </script>
 

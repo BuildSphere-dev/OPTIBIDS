@@ -97,6 +97,7 @@ const applicant = {
       offers.forEach(o => {
         const div = document.createElement('div');
         div.className = 'offer-card';
+        div.dataset.applicationId = o.application_id;
         div.style.marginBottom = '1rem';
 
         div.innerHTML = `
@@ -129,17 +130,24 @@ const applicant = {
       await api.post(`/applicant/offer/${appId}/respond?decision=${decision}`);
       const msg = decision === 'accept' ? '🎉 Offer accepted! Check My Contracts.' : 'Offer declined.';
       showToastGlobal(msg, decision === 'accept' ? 'success' : 'info');
-      // Reload notifications
-      setTimeout(() => applicant.loadNotifications(), 600);
 
-      // Update badge
-      if (decision === 'accept') {
-        const badge = document.getElementById('notif-badge');
-        if (badge) {
-          const cur = parseInt(badge.textContent) || 0;
-          if (cur <= 1) badge.style.display = 'none';
-          else badge.textContent = cur - 1;
+      const card = document.querySelector(`.offer-card[data-application-id="${appId}"]`);
+      if (card) card.remove();
+
+      const badge = document.getElementById('notif-badge');
+      if (badge) {
+        const cur = parseInt(badge.textContent) || 0;
+        const next = Math.max(0, cur - 1);
+        if (next <= 0) {
+          badge.style.display = 'none';
+        } else {
+          badge.textContent = next;
         }
+      }
+
+      const box = document.getElementById('notifications');
+      if (box && !box.querySelector('.offer-card')) {
+        box.innerHTML = '<div class="empty-state" style="padding:1.5rem;"><i class="fas fa-bell-slash"></i><p>No pending offers at this time.</p></div>';
       }
     } catch(e) {
       showToastGlobal('Failed to respond to offer', 'error');
