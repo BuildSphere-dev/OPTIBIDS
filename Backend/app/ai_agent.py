@@ -148,6 +148,16 @@ def build_user_summary(tender_id: int, session: "Session") -> dict:
         .order_by(Application.overall_score.desc()) # type: ignore
     ).all()
 
+    fallback = False
+    if not apps:
+        # If no applications have been evaluated yet, return submitted proposals
+        apps = session.exec(
+            select(Application)
+            .where(Application.tender_id == tender_id)
+            .order_by(Application.created_at.desc()) # type: ignore
+        ).all()
+        fallback = True
+
     if not apps:
         return {"best_application": None, "comparison": []}
 
@@ -177,8 +187,9 @@ def build_user_summary(tender_id: int, session: "Session") -> dict:
     return {
         "best_application": {
             **_app_to_dict(best),
-            # Explicit flag: True if DB winner pointer matches top scorer
             "is_confirmed_winner": confirmed_winner_id == best.id,
+            "note": "Evaluation pending" if fallback and best.status != "evaluated" else None,
         },
         "comparison": [_app_to_dict(a) for a in apps],
+        "pending_evaluation": fallback,
     }

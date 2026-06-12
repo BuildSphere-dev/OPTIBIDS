@@ -160,8 +160,20 @@ const admin = {
         return;
       }
 
-      const best = res.best_application || {};
+      const best = res.best_application;
       const others = res.comparison || [];
+
+      if (!best) {
+        panel.innerHTML = `
+          <div class="ai-panel">
+            <div class="ai-panel-header">
+              <div class="ai-icon"><i class="fas fa-robot"></i></div>
+              <div><h3>AI Evaluation Report</h3><p style="font-size:0.78rem;color:var(--text-3);margin:0;">Powered by phi3:mini</p></div>
+            </div>
+            <p style="padding:1rem 0;margin:0;color:var(--text-2);">No evaluated proposals found for this tender yet. Wait for the background scoring task to complete before generating the report.</p>
+          </div>`;
+        return;
+      }
 
       panel.innerHTML = `
         <div class="ai-panel">
@@ -173,23 +185,23 @@ const admin = {
             <h4><i class="fas fa-trophy"></i> Best Applicant</h4>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;font-size:0.88rem;">
               <div><span style="color:var(--text-3);font-size:0.76rem;display:block;">EMAIL</span><strong>${best.email || '—'}</strong></div>
-              <div><span style="color:var(--text-3);font-size:0.76rem;display:block;">PRICE</span><strong>${best.price || '—'}</strong></div>
-              <div><span style="color:var(--text-3);font-size:0.76rem;display:block;">SKU</span><strong>${best.sku || '—'}</strong></div>
-              <div><span style="color:var(--text-3);font-size:0.76rem;display:block;">VERDICT</span><strong style="color:var(--accent-green);">${best.verdict || '—'}</strong></div>
+              <div><span style="color:var(--text-3);font-size:0.76rem;display:block;">SCORE</span><strong>${best.overall_score !== undefined ? best.overall_score.toFixed(1) : '—'}</strong></div>
+              <div><span style="color:var(--text-3);font-size:0.76rem;display:block;">STATUS</span><strong>${best.status || '—'}</strong></div>
+              <div><span style="color:var(--text-3);font-size:0.76rem;display:block;">EVALUATED</span><strong>${best.created_at ? new Date(best.created_at).toLocaleString() : '—'}</strong></div>
             </div>
-            ${best.brief ? `<p style="margin-top:.75rem;font-size:0.85rem;color:var(--text-2);">${best.brief}</p>` : ''}
+            ${best.summary ? `<p style="margin-top:.75rem;font-size:0.85rem;color:var(--text-2);">${best.summary}</p>` : `<p style="margin-top:.75rem;font-size:0.85rem;color:var(--text-2);">No summary available yet.</p>`}
           </div>
           ${others.length ? `
-            <h4 style="font-size:0.9rem;margin-bottom:.6rem;color:var(--text-2);">All Applicants</h4>
+            <h4 style="font-size:0.9rem;margin-bottom:.6rem;color:var(--text-2);">All Applications</h4>
             <div style="overflow-x:auto;">
               <table class="comparison-table">
-                <thead><tr><th>Email</th><th>Price</th><th>Strengths</th><th>Weaknesses</th></tr></thead>
+                <thead><tr><th>Email</th><th>Score</th><th>Status</th><th>Summary</th></tr></thead>
                 <tbody>${others.map(a => `
                   <tr>
-                    <td>${a.email}</td>
-                    <td>${a.price}</td>
-                    <td style="color:var(--accent-green);">${(Array.isArray(a.strengths) ? a.strengths : [a.strengths || '—']).join(', ')}</td>
-                    <td style="color:var(--accent-red);">${(Array.isArray(a.weaknesses) ? a.weaknesses : [a.weaknesses || '—']).join(', ')}</td>
+                    <td>${a.email || '—'}</td>
+                    <td>${a.overall_score !== undefined ? a.overall_score.toFixed(1) : '—'}</td>
+                    <td>${a.status || '—'}</td>
+                    <td style="color:var(--accent-green);">${a.summary || '—'}</td>
                   </tr>`).join('')}
                 </tbody>
               </table>
