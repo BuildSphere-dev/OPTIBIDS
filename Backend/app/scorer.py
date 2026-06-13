@@ -20,10 +20,6 @@ OLLAMA_BASE = os.environ.get("OLLAMA_BASE", "http://localhost:11434")
 MODEL = os.environ.get("OLLAMA_MODEL", "phi3:mini")
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
 def _build_context(docs: List[Document]) -> str:
     """
     Format a list of LangChain Documents into a readable context block
@@ -62,10 +58,6 @@ def _parse_json(raw: str) -> dict:
         raise ValueError(f"No JSON object found in model output:\n{raw}")
     return json.loads(raw[start:end])
 
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 def score_proposal(
     relevant_chunks: List[Document],

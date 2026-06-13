@@ -5,9 +5,6 @@ from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship
 
 
-# ---------------------------------------------------------------------------
-# USER
-# ---------------------------------------------------------------------------
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -18,9 +15,6 @@ class User(SQLModel, table=True):
     applications: List["Application"] = Relationship(back_populates="user")
 
 
-# ---------------------------------------------------------------------------
-# TENDER
-# ---------------------------------------------------------------------------
 
 class Tender(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -32,8 +26,6 @@ class Tender(SQLModel, table=True):
     status: str = "draft"
     files: Optional[str] = None
 
-    # ── Winner tracking (updated after every proposal evaluation) ───────────
-    # O(1) winner lookup: no scan needed, just read these two fields.
     best_proposal_id: Optional[int] = Field(default=None, foreign_key="application.id")
     best_score: float = Field(default=0.0)
 
@@ -41,10 +33,6 @@ class Tender(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "[Application.tender_id]"}
     )
 
-
-# ---------------------------------------------------------------------------
-# APPLICATION
-# ---------------------------------------------------------------------------
 
 class Application(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -70,9 +58,6 @@ class Application(SQLModel, table=True):
     user: Optional["User"] = Relationship(back_populates="applications")
 
 
-# ---------------------------------------------------------------------------
-# TENDER CHUNK  (RAG index — one row per text chunk)
-# ---------------------------------------------------------------------------
 
 class TenderChunk(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -90,9 +75,6 @@ class TenderChunk(SQLModel, table=True):
     embedding_json: Optional[str] = None
 
 
-# ---------------------------------------------------------------------------
-# LEGACY MODELS — kept for backward compatibility with existing routes
-# ---------------------------------------------------------------------------
 
 class Requirement(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

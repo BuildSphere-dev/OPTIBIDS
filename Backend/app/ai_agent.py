@@ -24,10 +24,6 @@ OLLAMA_GENERATE = f"{OLLAMA_BASE}/api/generate"
 MODEL = os.environ.get("OLLAMA_MODEL", "phi3:mini")
 
 
-# ---------------------------------------------------------------------------
-# Unchanged functions
-# ---------------------------------------------------------------------------
-
 def extract_requirements_from_text(text: str) -> Dict:
     prompt = f"""
 You are an information extraction system.
@@ -116,9 +112,6 @@ def embed_text(text: str) -> List[float]:
     return [b / 255 for b in h]
 
 
-# ---------------------------------------------------------------------------
-# Updated: build_user_summary — pure DB read, no LLM
-# ---------------------------------------------------------------------------
 
 def build_user_summary(tender_id: int, session: "Session") -> dict:
     """

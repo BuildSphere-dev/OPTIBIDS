@@ -38,5 +38,5 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         return "\n\n".join(pages_text)
 
     except Exception as e:
-        print(f"❌ pdf_parser: failed to extract text from '{pdf_path}': {e}")
+        print(f" pdf_parser: failed to extract text from '{pdf_path}': {e}")
         return ""

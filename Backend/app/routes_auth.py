@@ -10,9 +10,6 @@ from .auth_utils import hash_password, verify_password, create_token
 router = APIRouter()
 
 
-# =========================
-# CURRENT USER
-# =========================
 @router.get("/me")
 def me(user: User = Depends(get_current_user)):
     return {
@@ -22,9 +19,7 @@ def me(user: User = Depends(get_current_user)):
     }
 
 
-# =========================
-# REGISTER
-# =========================
+
 class RegisterRequest(BaseModel):
     email: str
     password: str
@@ -60,9 +55,6 @@ def register_user(data: RegisterRequest):
         }
 
 
-# =========================
-# LOGIN
-# =========================
 class LoginRequest(BaseModel):
     email: str
     password: str

@@ -13,9 +13,6 @@ from .celery_app import celery
 router = APIRouter()
 
 
-# -------------------------------------------------
-# AUTH helpers
-# -------------------------------------------------
 def require_applicant(user: User = Depends(get_current_user)):
     if user.role not in ("applicant", "admin"):
         raise HTTPException(403, "Applicants only")
@@ -24,9 +21,7 @@ def require_applicant(user: User = Depends(get_current_user)):
     return user
 
 
-# -------------------------------------------------
-# SUBMIT APPLICATION  (no route change — queues Celery task)
-# -------------------------------------------------
+
 @router.post("/submit_application")
 def submit_application(data: dict, user: User = Depends(require_applicant)):
     if user.id is None:
@@ -60,7 +55,6 @@ def submit_application(data: dict, user: User = Depends(require_applicant)):
     return {"application_id": app_id, "status": "submitted"}
 
 
-# -------------------------------------------------
 # GET OWN APPLICATION + SCORES  (NEW)
 #
 # Lets a bidder poll their proposal status and see scores
@@ -68,7 +62,7 @@ def submit_application(data: dict, user: User = Depends(require_applicant)):
 #
 # Response while pending  → status: "submitted",  all scores 0.0
 # Response after scoring  → status: "evaluated",  scores populated
-# -------------------------------------------------
+
 @router.get("/applications/{application_id}")
 def get_my_application(
     application_id: int,

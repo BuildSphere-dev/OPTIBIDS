@@ -9,9 +9,6 @@ from .auth_utils import SECRET_KEY, ALGORITHM
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-# =========================
-# GET CURRENT USER
-# =========================
 def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -22,7 +19,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     except (JWTError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    # ✅ CORRECT session usage
+    
     with get_session() as session:
         user = session.get(User, user_id)
         if user is None:
@@ -30,18 +27,13 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         return user
 
 
-# =========================
-# REQUIRE ADMIN
-# =========================
 def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     return user
 
 
-# =========================
-# REQUIRE APPLICANT
-# =========================
+
 def require_applicant(user: User = Depends(get_current_user)) -> User:
     if user.role != "applicant":
         raise HTTPException(status_code=403, detail="Applicant only")

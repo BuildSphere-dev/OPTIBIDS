@@ -4,7 +4,7 @@ import numpy as np
 from typing import List
 from pathlib import Path
 
-# Store index inside /app/app/ so it survives volume mount
+
 INDEX_FILE = Path(__file__).resolve().parent / "faiss.index"
 VECTOR_DIM = 16
 

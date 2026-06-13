@@ -14,17 +14,12 @@ router = APIRouter()
 UPLOAD_DIR = "/app/out"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# -------------------------------------------------
-# AUTH
-# -------------------------------------------------
 def require_admin(user: User = Depends(get_current_user)):
     if user.role != "admin":
         raise HTTPException(403, "Admin only")
     return user
 
-# -------------------------------------------------
-# CREATE TENDER
-# -------------------------------------------------
+
 @router.post("/tenders")
 async def create_tender(
     background_tasks: BackgroundTasks,
@@ -60,9 +55,6 @@ async def create_tender(
 
     return {"id": tender_id}
 
-# -------------------------------------------------
-# LIST TENDERS
-# -------------------------------------------------
 @router.get("/tenders")
 def admin_list_tenders(admin: User = Depends(require_admin)):
     with get_session() as session:
@@ -87,9 +79,7 @@ def admin_list_tenders(admin: User = Depends(require_admin)):
 
         return out
 
-# -------------------------------------------------
-# LIST APPLICATIONS
-# -------------------------------------------------
+
 @router.get("/applications")
 def admin_list_applications(admin: User = Depends(require_admin)):
     with get_session() as session:
@@ -115,9 +105,7 @@ def admin_list_applications(admin: User = Depends(require_admin)):
         return result
 
 
-# -------------------------------------------------
-# GET SINGLE APPLICATION
-# -------------------------------------------------
+
 @router.get("/applications/{application_id}")
 def get_application(application_id: int, admin: User = Depends(require_admin)):
     with get_session() as session:
@@ -137,9 +125,6 @@ def get_application(application_id: int, admin: User = Depends(require_admin)):
             "status": app.status,
         }
 
-# -------------------------------------------------
-# AI SUMMARY
-# -------------------------------------------------
 @router.post("/tenders/{tender_id}/summary")
 def summarize_tender(tender_id: int, admin: User = Depends(require_admin)):
     with get_session() as session:
@@ -182,9 +167,7 @@ def publish_tender(
     return {"tender_id": tender_id, "status": "indexing_started"}
 
 
-# -------------------------------------------------
-# SEND OFFER
-# -------------------------------------------------
+
 @router.post("/applications/{application_id}/offer")
 def send_offer(
     application_id: int,
@@ -208,9 +191,7 @@ def send_offer(
             "status": "offered",
             "application_id": application_id
         }
-# ---------------------------
-# ACCEPTED OFFERS (ADMIN)
-# ---------------------------
+
 @router.get("/accepted-offers")
 def admin_accepted_offers(admin: User = Depends(require_admin)):
     with get_session() as session:

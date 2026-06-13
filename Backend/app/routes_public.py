@@ -9,9 +9,7 @@ from .db import get_session
 router = APIRouter()
 
 
-# =========================
-# PUBLIC TENDERS
-# =========================
+
 @router.get("/tenders")
 def list_tenders():
     with get_session() as session:
@@ -28,9 +26,7 @@ def list_tenders():
         ]
 
 
-# =========================
-# DOWNLOAD FILE
-# =========================
+
 @router.get("/download/{filename}")
 def download_file(filename: str):
     file_path = f"/app/out/{filename}"

@@ -6,9 +6,7 @@ from .db import init_db
 
 app = FastAPI(title="RFP Prototype Backend")
 
-# ---------------------------
-# CORS
-# ---------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,9 +15,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------
-# STARTUP
-# ---------------------------
 @app.on_event("startup")
 def startup():
     init_db()
@@ -29,7 +24,5 @@ def startup():
     except Exception as e:
         print("Seed failed:", e)
 
-# ---------------------------
-# REGISTER ROUTERS
-# ---------------------------
+
 register_all_routes(app)

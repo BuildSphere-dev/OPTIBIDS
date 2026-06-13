@@ -28,9 +28,6 @@ from . import ai_agent
 from .chunker import chunk_tender
 
 
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
 
 def index_tender(tender_id: int) -> None:
     """
@@ -44,7 +41,6 @@ def index_tender(tender_id: int) -> None:
     """
     print(f"▶  index_tender: tender_id={tender_id}")
 
-    # ── Load tender ──────────────────────────────────────────────────────────
     with get_session() as session:
         tender = session.get(Tender, tender_id)
         if tender is None:
@@ -57,7 +53,7 @@ def index_tender(tender_id: int) -> None:
         tender_title = tender.title
         text = tender.raw_text or tender.description
 
-    # ── Chunk with LangChain (metadata attached per Document) ────────────────
+   
     documents = chunk_tender(
         text=text,
         tender_id=tender_id,
@@ -68,7 +64,7 @@ def index_tender(tender_id: int) -> None:
 
     print(f"   Produced {len(documents)} chunks for tender_id={tender_id}")
 
-    # ── Embed + persist ──────────────────────────────────────────────────────
+    
     with get_session() as session:
         # Clear any previously indexed chunks for this tender
         # (handles re-indexing after an edit)
@@ -99,13 +95,10 @@ def index_tender(tender_id: int) -> None:
             tender.status = "published"
         session.commit()
 
-    print(f"✅  index_tender done: {len(documents)} chunks stored, "
+    print(f"  index_tender done: {len(documents)} chunks stored, "
           f"tender_id={tender_id} status=published")
 
 
-# ---------------------------------------------------------------------------
-# Legacy — kept so any existing imports of run_pipeline don't break
-# ---------------------------------------------------------------------------
 
 def run_pipeline(tender_id: int) -> None:
     """

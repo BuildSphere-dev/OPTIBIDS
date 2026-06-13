@@ -45,7 +45,7 @@ def init_worker_db(**kwargs):
         from .db import init_db
         print("▶  Initializing database for worker...")
         init_db()
-        print("✅ Worker database initialized")
+        print(" Worker database initialized")
     except Exception as e:
-        print(f"❌ Failed to initialize worker database: {e}")
+        print(f" Failed to initialize worker database: {e}")
 
